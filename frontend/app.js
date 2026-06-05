@@ -155,6 +155,9 @@ let cart = [];
 let appliedCoupon = null;
 let currentDiningOption = "dine-in";
 
+let currentUser = null;
+let authActionCallback = null;
+
 // Constants sync
 const COUPONS = {
   "BITE10": 0.10,
@@ -230,6 +233,32 @@ const stepPlaced = document.getElementById("step-placed");
 const stepPrep = document.getElementById("step-prep");
 const stepReady = document.getElementById("step-ready");
 
+// Authentication DOM selectors
+const authModal = document.getElementById("auth-modal");
+const btnAuthModalOpen = document.getElementById("btn-auth-modal-open");
+const btnCloseAuth = document.getElementById("btn-close-auth");
+const tabSignIn = document.getElementById("tab-sign-in");
+const tabSignUp = document.getElementById("tab-sign-up");
+const formSignIn = document.getElementById("form-sign-in");
+const formSignUp = document.getElementById("form-sign-up");
+const signinEmail = document.getElementById("signin-email");
+const signinPassword = document.getElementById("signin-password");
+const signinError = document.getElementById("signin-error");
+const signupName = document.getElementById("signup-name");
+const signupEmail = document.getElementById("signup-email");
+const signupPassword = document.getElementById("signup-password");
+const signupError = document.getElementById("signup-error");
+
+// User Header DOM selectors
+const userProfileMenu = document.getElementById("user-profile-menu");
+const userHeaderName = document.getElementById("user-header-name");
+const userAvatarLetter = document.getElementById("user-avatar-letter");
+const dropdownFullName = document.getElementById("dropdown-full-name");
+const dropdownEmailText = document.getElementById("dropdown-email-text");
+const btnSignOut = document.getElementById("btn-sign-out");
+const btnUserAvatar = document.getElementById("btn-user-avatar");
+const userDropdownList = document.getElementById("user-dropdown-list");
+
 // 4. Initializer function
 document.addEventListener("DOMContentLoaded", () => {
   // Setup real-time header clock
@@ -240,10 +269,60 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Load menu data
   fetchMenuData();
+
+  // Restore user session if persisted
+  restoreUserSession();
   
   // Refresh Lucide Icons initially
   lucide.createIcons();
 });
+
+// Restore user session from localStorage
+function restoreUserSession() {
+  const savedUser = localStorage.getItem("canteen_user");
+  if (savedUser) {
+    try {
+      currentUser = JSON.parse(savedUser);
+      updateUserHeaderUI();
+    } catch (e) {
+      console.error("Session restore failed", e);
+      localStorage.removeItem("canteen_user");
+    }
+  }
+}
+
+// Update header when user signs in or signs out
+function updateUserHeaderUI() {
+  if (currentUser) {
+    btnAuthModalOpen.classList.add("hidden");
+    userProfileMenu.classList.remove("hidden");
+    userHeaderName.textContent = currentUser.name.split(" ")[0]; // First name
+    userAvatarLetter.textContent = currentUser.name.charAt(0).toUpperCase();
+    dropdownFullName.textContent = currentUser.name;
+    dropdownEmailText.textContent = currentUser.email;
+  } else {
+    btnAuthModalOpen.classList.remove("hidden");
+    userProfileMenu.classList.add("hidden");
+    userDropdownList.classList.add("hidden");
+  }
+}
+
+// Switching tab triggers
+window.switchAuthTab = function(tab) {
+  if (tab === 'sign-in') {
+    tabSignIn.classList.add("active");
+    tabSignUp.classList.remove("active");
+    formSignIn.classList.remove("hidden");
+    formSignUp.classList.add("hidden");
+    signinError.classList.add("hidden");
+  } else {
+    tabSignIn.classList.remove("active");
+    tabSignUp.classList.add("active");
+    formSignIn.classList.add("hidden");
+    formSignUp.classList.remove("hidden");
+    signupError.classList.add("hidden");
+  }
+}
 
 // 5. Asynchronous Fetch API Request with robust Local Fallback
 async function fetchMenuData() {
@@ -509,6 +588,164 @@ function registerEventListeners() {
     stepPrep.className = "tracker-step";
     stepReady.className = "tracker-step";
   });
+
+  // Auth modal actions
+  btnAuthModalOpen.addEventListener("click", () => {
+    authModal.classList.remove("hidden");
+    switchAuthTab('sign-in');
+  });
+
+  btnCloseAuth.addEventListener("click", () => {
+    authModal.classList.add("hidden");
+    authActionCallback = null; // Clear callbacks
+  });
+
+  tabSignIn.addEventListener("click", () => switchAuthTab('sign-in'));
+  tabSignUp.addEventListener("click", () => switchAuthTab('tab-sign-up'));
+
+  // Toggle user profile dropdown
+  btnUserAvatar.addEventListener("click", (e) => {
+    e.stopPropagation();
+    userDropdownList.classList.toggle("hidden");
+  });
+
+  // Close dropdown clicking outside
+  document.addEventListener("click", () => {
+    userDropdownList.classList.add("hidden");
+  });
+
+  // Sign out click
+  btnSignOut.addEventListener("click", () => {
+    currentUser = null;
+    localStorage.removeItem("canteen_user");
+    updateUserHeaderUI();
+    cart = [];
+    updateCartDrawerUI();
+  });
+
+  // Sign In submit
+  formSignIn.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    signinError.classList.add("hidden");
+    const email = signinEmail.value.trim();
+    const password = signinPassword.value.trim();
+
+    // Mode A: Server-Side Auth if online
+    if (!isOfflineMode) {
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+        if (res.ok) {
+          const user = await res.json();
+          currentUser = user;
+          localStorage.setItem("canteen_user", JSON.stringify(user));
+          updateUserHeaderUI();
+          authModal.classList.add("hidden");
+          formSignIn.reset();
+          if (authActionCallback) {
+            const cb = authActionCallback;
+            authActionCallback = null;
+            cb();
+          }
+          return;
+        }
+      } catch (err) {
+        console.warn("Server auth failed, trying local fallback", err);
+      }
+    }
+
+    // Mode B: Local Simulation Auth (offline)
+    const localUsers = JSON.parse(localStorage.getItem("canteen_users") || "[]");
+    const matchedUser = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+    
+    // Add default account fallback for testing
+    if (matchedUser || (email.toLowerCase() === "user@campus.com" && password === "123456")) {
+      const user = matchedUser || { name: "Campus Student", email: email };
+      currentUser = user;
+      localStorage.setItem("canteen_user", JSON.stringify(user));
+      updateUserHeaderUI();
+      authModal.classList.add("hidden");
+      formSignIn.reset();
+      if (authActionCallback) {
+        const cb = authActionCallback;
+        authActionCallback = null;
+        cb();
+      }
+    } else {
+      signinError.classList.remove("hidden");
+    }
+  });
+
+  // Sign Up submit
+  formSignUp.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    signupError.classList.add("hidden");
+    const name = signupName.value.trim();
+    const email = signupEmail.value.trim();
+    const password = signupPassword.value.trim();
+
+    // Mode A: Server-Side Register if online
+    if (!isOfflineMode) {
+      try {
+        const res = await fetch(`${API_BASE}/auth/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, password })
+        });
+        if (res.ok) {
+          const user = await res.json();
+          currentUser = user;
+          localStorage.setItem("canteen_user", JSON.stringify(user));
+          updateUserHeaderUI();
+          authModal.classList.add("hidden");
+          formSignUp.reset();
+          if (authActionCallback) {
+            const cb = authActionCallback;
+            authActionCallback = null;
+            cb();
+          }
+          return;
+        } else {
+          const errData = await res.json();
+          if (errData.error) {
+            signupError.textContent = errData.error;
+            signupError.classList.remove("hidden");
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Server register failed, trying local fallback", err);
+      }
+    }
+
+    // Mode B: Local Simulation Register (offline)
+    const localUsers = JSON.parse(localStorage.getItem("canteen_users") || "[]");
+    const exists = localUsers.some(u => u.email.toLowerCase() === email.toLowerCase());
+
+    if (exists || email.toLowerCase() === "user@campus.com") {
+      signupError.textContent = "Email is already registered. Please log in.";
+      signupError.classList.remove("hidden");
+    } else {
+      const newUser = { name, email, password };
+      localUsers.push(newUser);
+      localStorage.setItem("canteen_users", JSON.stringify(localUsers));
+      
+      // Auto login
+      currentUser = { name, email };
+      localStorage.setItem("canteen_user", JSON.stringify(currentUser));
+      updateUserHeaderUI();
+      authModal.classList.add("hidden");
+      formSignUp.reset();
+      if (authActionCallback) {
+        const cb = authActionCallback;
+        authActionCallback = null;
+        cb();
+      }
+    }
+  });
 }
 
 function showCouponFeedback(text, type) {
@@ -629,6 +866,27 @@ function updateCartSummary() {
 
 // 11. Dual Mode Order checkout submission
 async function postOrderCheckout() {
+  // Check if user is authenticated
+  if (!currentUser) {
+    // Intercept checkout and open sign-in modal
+    authActionCallback = () => { postOrderCheckout(); };
+    authModal.classList.remove("hidden");
+    switchAuthTab('sign-in');
+    
+    // Customize prompt title to guide guest user
+    const signInTitle = document.querySelector("#form-sign-in .auth-header-desc h3");
+    const signInDesc = document.querySelector("#form-sign-in .auth-header-desc p");
+    if (signInTitle) signInTitle.textContent = "Sign In Required";
+    if (signInDesc) signInDesc.textContent = "Please sign in or create an account to finalize your checkout order.";
+    return;
+  }
+  
+  // Restore standard text just in case
+  const signInTitle = document.querySelector("#form-sign-in .auth-header-desc h3");
+  const signInDesc = document.querySelector("#form-sign-in .auth-header-desc p");
+  if (signInTitle) signInTitle.textContent = "Welcome Back!";
+  if (signInDesc) signInDesc.textContent = "Sign in to your account to place your canteen orders.";
+
   const instructionsVal = kitchenInstructionsInput.value.trim();
   const checkoutPayload = {
     cartItems: cart,

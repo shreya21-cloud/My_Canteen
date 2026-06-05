@@ -11,6 +11,7 @@ const menuPath = path.join(__dirname, 'menu.json');
 
 // In-Memory Order Storage log
 const orders = [];
+const usersList = [];
 
 // Static Constants
 const GST_TAX_RATE = 0.05; // 5%
@@ -153,6 +154,65 @@ const server = http.createServer((req, res) => {
         console.error("Order processing error:", err);
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: "Malformed payload or invalid request body data." }));
+      }
+    });
+    return;
+  }
+
+  // Route 3: POST /api/auth/register - User Registration
+  if (req.method === 'POST' && req.url === '/api/auth/register') {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+    req.on('end', () => {
+      try {
+        const { name, email, password } = JSON.parse(body);
+        if (!name || !email || !password) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: "All registration fields (name, email, password) are required." }));
+          return;
+        }
+        const exists = usersList.some(u => u.email.toLowerCase() === email.toLowerCase());
+        if (exists) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: "Email is already registered. Try logging in." }));
+          return;
+        }
+        const newUser = { name, email, password };
+        usersList.push(newUser);
+        console.log(`[Auth Register] Registered new user account: ${name} (${email})`);
+        res.writeHead(201, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ name: newUser.name, email: newUser.email }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: "Malformed payload." }));
+      }
+    });
+    return;
+  }
+
+  // Route 4: POST /api/auth/login - User Sign In Authentication
+  if (req.method === 'POST' && req.url === '/api/auth/login') {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+    req.on('end', () => {
+      try {
+        const { email, password } = JSON.parse(body);
+        const matchedUser = usersList.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+        if (matchedUser) {
+          console.log(`[Auth Login] User signed in successfully: ${matchedUser.name} (${matchedUser.email})`);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ name: matchedUser.name, email: matchedUser.email }));
+        } else {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: "Incorrect email or password." }));
+        }
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: "Malformed payload." }));
       }
     });
     return;

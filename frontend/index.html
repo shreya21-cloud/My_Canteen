@@ -61,6 +61,31 @@
           </div>
           <span class="cart-total-text desktop-only" id="cart-nav-total">₹0.00</span>
         </button>
+
+        <!-- Auth Sign In Action -->
+        <button class="auth-trigger-btn" id="btn-auth-modal-open">
+          <i data-lucide="log-in"></i>
+          <span>Sign In</span>
+        </button>
+
+        <!-- Profile Dropdown (visible when authenticated) -->
+        <div class="user-profile-menu hidden" id="user-profile-menu">
+          <button class="user-avatar-btn" id="btn-user-avatar" aria-label="User profile menu">
+            <span class="avatar-letter" id="user-avatar-letter">U</span>
+            <span class="user-name-text desktop-only" id="user-header-name">Profile</span>
+            <i data-lucide="chevron-down" class="chevron-icon"></i>
+          </button>
+          <div class="dropdown-menu-list hidden" id="user-dropdown-list">
+            <div class="dropdown-user-header">
+              <strong id="dropdown-full-name">User Name</strong>
+              <span id="dropdown-email-text">user@campus.com</span>
+            </div>
+            <hr class="dropdown-divider">
+            <button class="dropdown-item" id="btn-sign-out">
+              <i data-lucide="log-out"></i> Sign Out
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </header>
@@ -350,6 +375,88 @@
           <button class="btn-primary-action" id="btn-close-receipt">
             <i data-lucide="home"></i> Return to Menu
           </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Authentication (Sign In & Sign Up) Modal -->
+  <div class="modal-overlay hidden" id="auth-modal">
+    <div class="modal-wrapper">
+      <div class="modal-card auth-card">
+        
+        <!-- Form Tabs header -->
+        <div class="auth-tabs">
+          <button class="auth-tab-btn active" id="tab-sign-in">Sign In</button>
+          <button class="auth-tab-btn" id="tab-sign-up">Create Account</button>
+        </div>
+
+        <div class="auth-body">
+          <button class="btn-close-modal" id="btn-close-auth" aria-label="Close Authentication Screen">
+            <i data-lucide="x"></i>
+          </button>
+
+          <!-- Form Sign In -->
+          <form id="form-sign-in" class="auth-form">
+            <div class="auth-header-desc">
+              <h3>Welcome Back!</h3>
+              <p>Sign in to your account to place your canteen orders.</p>
+            </div>
+            <div class="input-group">
+              <label for="signin-email">Email Address</label>
+              <div class="input-wrapper">
+                <i data-lucide="mail"></i>
+                <input type="email" id="signin-email" placeholder="e.g. name@campus.com" required>
+              </div>
+            </div>
+            <div class="input-group">
+              <label for="signin-password">Password</label>
+              <div class="input-wrapper">
+                <i data-lucide="lock"></i>
+                <input type="password" id="signin-password" placeholder="••••••••" required>
+              </div>
+            </div>
+            <div class="auth-error-msg hidden" id="signin-error">Invalid email or password. Please try again.</div>
+            <button type="submit" class="btn-checkout btn-auth">
+              <span>Sign In Securely</span>
+              <i data-lucide="log-in"></i>
+            </button>
+          </form>
+
+          <!-- Form Sign Up -->
+          <form id="form-sign-up" class="auth-form hidden">
+            <div class="auth-header-desc">
+              <h3>Create Your Account</h3>
+              <p>Sign up to check out faster and track your food preparation live.</p>
+            </div>
+            <div class="input-group">
+              <label for="signup-name">Full Name</label>
+              <div class="input-wrapper">
+                <i data-lucide="user"></i>
+                <input type="text" id="signup-name" placeholder="e.g. Vivek Kumar" required>
+              </div>
+            </div>
+            <div class="input-group">
+              <label for="signup-email">Email Address</label>
+              <div class="input-wrapper">
+                <i data-lucide="mail"></i>
+                <input type="email" id="signup-email" placeholder="e.g. name@campus.com" required>
+              </div>
+            </div>
+            <div class="input-group">
+              <label for="signup-password">Password</label>
+              <div class="input-wrapper">
+                <i data-lucide="lock"></i>
+                <input type="password" id="signup-password" placeholder="Minimum 6 characters" minlength="6" required>
+              </div>
+            </div>
+            <div class="auth-error-msg hidden" id="signup-error">Email is already registered. Please try logging in.</div>
+            <button type="submit" class="btn-checkout btn-auth">
+              <span>Register Account</span>
+              <i data-lucide="user-plus"></i>
+            </button>
+          </form>
         </div>
 
       </div>
